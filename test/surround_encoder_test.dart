@@ -12,10 +12,13 @@ void main() {
     );
   });
 
-  test('config rejects out-of-range bitrates', () {
-    expect(
-      () => SurroundEncoderConfig(bitrate: 640000),
-      throwsA(isA<AssertionError>()),
+  test('config accepts dca codec with high bitrate (validated at start())',
+      () {
+    // Construction no longer hard-codes the AC-3 range; start() validates
+    // per codec (covered by surround_encoder_pigeon_test.dart).
+    const SurroundEncoderConfig(
+      codec: CodecKind.dca,
+      bitrate: 1509000,
     );
   });
 
