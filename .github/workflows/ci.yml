@@ -6,6 +6,9 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  FLUTTER_VERSION: '3.50.0'
+
 jobs:
   dart-tests:
     name: Dart analyze + test
@@ -15,6 +18,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
@@ -28,13 +32,14 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - name: Build FFmpeg dev layout (vcpkg, LGPL)
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitURL: https://github.com/microsoft/vcpkg
-          runVcpkgInstall: ffmpeg
-          vcpkgDirectory: ${{ github.workspace }}/vcpkg
-          vcpkgTriplet: x64-windows
+        shell: pwsh
+        run: |
+          if (Test-Path vcpkg) { Remove-Item -Recurse -Force vcpkg }
+          git clone --depth 1 https://github.com/microsoft/vcpkg
+          .\vcpkg\bootstrap-vcpkg.bat
+          .\vcpkg\vcpkg.exe install ffmpeg --triplet x64-windows
       - name: Stage FFmpeg layout for plugin discovery
         shell: pwsh
         run: |
@@ -53,12 +58,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build FFmpeg dev layout (vcpkg, LGPL)
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitURL: https://github.com/microsoft/vcpkg
-          runVcpkgInstall: ffmpeg
-          vcpkgDirectory: ${{ github.workspace }}/vcpkg
-          vcpkgTriplet: arm64-windows
+        shell: pwsh
+        run: |
+          if (Test-Path vcpkg) { Remove-Item -Recurse -Force vcpkg }
+          git clone --depth 1 https://github.com/microsoft/vcpkg
+          .\vcpkg\bootstrap-vcpkg.bat
+          .\vcpkg\vcpkg.exe install ffmpeg --triplet arm64-windows
       - name: Stage FFmpeg layout and configure plugin for ARM64
         shell: pwsh
         run: |
@@ -89,13 +94,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - name: Build FFmpeg dev layout (vcpkg, LGPL)
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitURL: https://github.com/microsoft/vcpkg
-          runVcpkgInstall: ffmpeg
-          vcpkgDirectory: ${{ github.workspace }}/vcpkg
-          vcpkgTriplet: ${{ matrix.triplet }}
+        run: |
+          if [ -d vcpkg ]; then rm -rf vcpkg; fi
+          git clone --depth 1 https://github.com/microsoft/vcpkg
+          ./vcpkg/bootstrap-vcpkg.sh
+          ./vcpkg/vcpkg install ffmpeg --triplet ${{ matrix.triplet }}
       - name: Stage FFmpeg layout
         run: |
           mkdir -p native/ffmpeg/${{ matrix.triplet }}
@@ -123,6 +128,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
       - name: Install system dependencies
         run: |
           sudo apt-get update
