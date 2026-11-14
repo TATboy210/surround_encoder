@@ -60,7 +60,7 @@ jobs:
           cd native\dcaenc\dcaenc-src
           cl /O2 gentables.c
           gentables.exe > math_tables.c
-          cl /O2 /LD dcaenc.c math_tables.c /Fe:..\windows-x64\bin\dcaenc.dll /link /DEF:..\..\tool\dcaenc.def /MACHINE:X64
+          cl /O2 /LD dcaenc.c math_tables.c /Fe:..\windows-x64\bin\dcaenc.dll /link /DEF:..\..\..\tool\dcaenc.def /MACHINE:X64
           copy /y dcaenc.h ..\windows-x64\include\dcaenc.h
           copy /y dcaenc.lib ..\windows-x64\lib\dcaenc.lib
       - name: Build example (auto-start smoke session)
@@ -100,7 +100,7 @@ jobs:
           cd native\dcaenc\dcaenc-src
           cl /O2 gentables.c
           gentables.exe > math_tables.c
-          cl /O2 /LD dcaenc.c math_tables.c /Fe:..\windows-arm64\bin\dcaenc.dll /link /DEF:..\..\tool\dcaenc.def /MACHINE:ARM64
+          cl /O2 /LD dcaenc.c math_tables.c /Fe:..\windows-arm64\bin\dcaenc.dll /link /DEF:..\..\..\tool\dcaenc.def /MACHINE:ARM64
           copy /y dcaenc.h ..\windows-arm64\include\dcaenc.h
           copy /y dcaenc.lib ..\windows-arm64\lib\dcaenc.lib
       - name: Configure plugin for ARM64
@@ -116,6 +116,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: dart-tests
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-15
@@ -155,6 +156,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: dart-tests
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
@@ -175,7 +177,7 @@ jobs:
         if: matrix.arch == 'arm64'
         run: |
           curl -L -o /tmp/flutter.tar.xz \
-            "https://github.com/flutter/flutter/releases/download/${FLUTTER_VERSION}/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
           tar -xf /tmp/flutter.tar.xz -C "$HOME"
           echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
       - name: Install system dependencies
