@@ -16,6 +16,9 @@ set(COMMON_SOURCES
   "../src/common/ac3_encoder.cpp"
   "../src/common/ac3_encoder.h"
   "../src/common/capture_source.h"
+  "../src/common/dca_encoder.cpp"
+  "../src/common/dca_encoder.h"
+  "../src/common/encoder.h"
   "../src/common/encoder_pipeline.cpp"
   "../src/common/encoder_pipeline.h"
   "../src/common/ts_muxer.cpp"
@@ -108,6 +111,40 @@ else()
       "SURROUND_ENCODER_FFMPEG_ROOT.")
   endif()
   target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::FFMPEG)
+endif()
+
+# --- dcaenc discovery (DTS Coherent Acoustics encoder, see NOTICE.md) -----
+set(SURROUND_ENCODER_DCAENC_ROOT "" CACHE PATH
+    "Path to a dcaenc development layout (include/, lib/)")
+if(NOT SURROUND_ENCODER_DCAENC_ROOT AND DEFINED ENV{SURROUND_ENCODER_DCAENC_ROOT})
+  set(SURROUND_ENCODER_DCAENC_ROOT "$ENV{SURROUND_ENCODER_DCAENC_ROOT}")
+endif()
+if(NOT SURROUND_ENCODER_DCAENC_ROOT)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|ARM|aarch64|AARCH64)")
+    set(_se_arch "arm64")
+  else()
+    set(_se_arch "x64")
+  endif()
+  set(_se_dcaenc_layout
+    "${CMAKE_CURRENT_SOURCE_DIR}/../native/dcaenc/linux-${_se_arch}")
+  if(EXISTS "${_se_dcaenc_layout}/include")
+    set(SURROUND_ENCODER_DCAENC_ROOT "${_se_dcaenc_layout}")
+  endif()
+  unset(_se_arch)
+  unset(_se_dcaenc_layout)
+endif()
+
+if(SURROUND_ENCODER_DCAENC_ROOT)
+  target_include_directories(${PLUGIN_NAME} PRIVATE
+    "${SURROUND_ENCODER_DCAENC_ROOT}/include")
+  find_library(_dcaenc_lib dcaenc
+    PATHS "${SURROUND_ENCODER_DCAENC_ROOT}/lib" NO_DEFAULT_PATH)
+  if(NOT _dcaenc_lib)
+    message(FATAL_ERROR "dcaenc library not found under "
+      "${SURROUND_ENCODER_DCAENC_ROOT}/lib - run tool/setup_dcaenc.sh")
+  endif()
+  target_link_libraries(${PLUGIN_NAME} PRIVATE ${_dcaenc_lib})
+  unset(_dcaenc_lib CACHE)
 endif()
 
 # List of absolute paths to libraries that should be bundled with the plugin.

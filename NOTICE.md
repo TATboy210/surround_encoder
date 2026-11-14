@@ -34,6 +34,22 @@ output.
   offer the corresponding FFmpeg source (or a written offer) to your
   recipients. See <https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html>.
 
+## dcaenc
+
+DTS (DCA) encoding is provided by
+[dcaenc](https://gitlab.com/patrakov/dcaenc) — an independent implementation
+of the DTS Coherent Acoustics codec written from the public ETSI TS 102 366
+standard by Alexander E. Patrakov.
+
+- **License:** dcaenc is licensed under the
+  [GNU Lesser General Public License (LGPL) version 2.1 or later](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html).
+- **How this project stays LGPL-compliant:** the same rules as FFmpeg above
+  apply — the library is linked dynamically, no binaries are committed or
+  distributed, and `tool/setup_dcaenc.ps1` / `tool/setup_dcaenc.sh` build it
+  from source (which also satisfies the LGPL source-availability duty).
+- The DCA core-format patents have expired; no patent license is required
+  for the core bitstreams this plugin produces.
+
 ## Codec naming and trademarks
 
 This plugin is an **independent open implementation**. It is **not**
@@ -53,6 +69,14 @@ other vendor.
   Newer variants (E-AC-3 / "Dolby Digital Plus", DTS:X, DTS-HD) are **not**
   implemented and remain subject to patents — do not add them without
   appropriate licensing.
+
+## Scope of this project
+
+This plugin reimplements the *functional equivalent* of consumer sound-card
+"real-time encode" features through open components only. It does not
+incorporate, decompile, or derive from any proprietary product (including
+Creative software packs or Dolby/DTS SDKs); all codec implementations are
+independent open-source works based on public standards.
 
 ## Platform capture notes
 

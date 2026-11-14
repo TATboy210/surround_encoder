@@ -109,17 +109,31 @@ class _EncoderPageState extends State<EncoderPage> {
   }
 
   Future<void> _runAutoStartSession() async {
-    const String path = 'surround_auto_start_out.ts';
+    // AC-3 session...
     try {
       await SurroundEncoder.start(const SurroundEncoderConfig(
         captureSystem: true,
-        sink: FileSink(path),
+        sink: FileSink('surround_auto_start_out.ts'),
       ));
-      await Future<void>.delayed(const Duration(seconds: 10));
+      await Future<void>.delayed(const Duration(seconds: 8));
       await SurroundEncoder.stop();
-      debugPrint('SURROUND_AUTO_START session finished, output: $path');
+      debugPrint('SURROUND_AUTO_START ac3 session finished');
     } catch (e) {
-      debugPrint('SURROUND_AUTO_START session failed: $e');
+      debugPrint('SURROUND_AUTO_START ac3 session failed: $e');
+    }
+    // ...then a DTS (DCA) session, exercising the second codec backend.
+    try {
+      await SurroundEncoder.start(const SurroundEncoderConfig(
+        captureSystem: true,
+        codec: CodecKind.dca,
+        bitrate: 768000,
+        sink: FileSink('surround_auto_start_dca_out.ts'),
+      ));
+      await Future<void>.delayed(const Duration(seconds: 8));
+      await SurroundEncoder.stop();
+      debugPrint('SURROUND_AUTO_START dca session finished');
+    } catch (e) {
+      debugPrint('SURROUND_AUTO_START dca session failed: $e');
     }
   }
 

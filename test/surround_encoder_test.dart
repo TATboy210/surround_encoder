@@ -19,13 +19,6 @@ void main() {
     );
   });
 
-  test('config rejects unimplemented codecs', () {
-    expect(
-      () => SurroundEncoderConfig(codec: CodecKind.dca),
-      throwsA(isA<AssertionError>()),
-    );
-  });
-
   test('events is broadcast-capable', () {
     final Stream<EncoderEvent> events = SurroundEncoder.events;
     expect(events.isBroadcast, isTrue);

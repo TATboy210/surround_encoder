@@ -121,6 +121,9 @@ void SurroundEncoderPlugin::Start(
       config.sample_rate() ? static_cast<int>(*config.sample_rate()) : 48000;
   pipeline.bitrate =
       config.bitrate() ? *config.bitrate() : 448000;
+  pipeline.codec = config.codec() && *config.codec() == CodecKind::kDca
+                       ? EncoderKind::kDca
+                       : EncoderKind::kAc3;
 
   PipelineSink sink = PipelineSink::kStream;
   if (config.sink_kind()) {

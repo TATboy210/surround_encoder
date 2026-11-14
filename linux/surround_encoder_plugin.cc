@@ -199,6 +199,13 @@ void handle_start(SurroundEncoderEncoderConfig* config,
       sample_rate != nullptr ? static_cast<int>(*sample_rate) : 48000;
   const int64_t* bitrate = surround_encoder_encoder_config_get_bitrate(config);
   pipeline.bitrate = bitrate != nullptr ? *bitrate : 448000;
+  const SurroundEncoderCodecKind* codec_kind =
+      surround_encoder_encoder_config_get_codec(config);
+  pipeline.codec =
+      codec_kind != nullptr &&
+              *codec_kind == SURROUND_ENCODER_CODEC_KIND_DCA
+          ? surround_encoder::EncoderKind::kDca
+          : surround_encoder::EncoderKind::kAc3;
 
   surround_encoder::PipelineSink sink =
       surround_encoder::PipelineSink::kStream;

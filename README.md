@@ -2,14 +2,17 @@
 
 Real-time surround-sound capture and encoding for Flutter desktop apps.
 Capture **system playback audio** (what your speakers would play) and/or a
-**microphone**, mix them, and encode them live into a **5.1 AC-3 stream**
-(wrapped in MPEG-TS for file/UDP output, or delivered as raw packets to Dart).
+**microphone**, mix them, and encode them live into a **5.1 AC-3 or DTS
+(DCA) stream** (wrapped in MPEG-TS for file/UDP output, or delivered as raw
+packets to Dart).
 
 Think of it as the open, self-hostable equivalent of the "what you hear"
-encoders bundled with consumer sound-card software — built entirely on
-FFmpeg's open implementation of the AC-3 format. See [NOTICE.md](NOTICE.md)
-for trademark and licensing notes: this project is **not** affiliated with or
-certified by Dolby, DTS, Creative, or any other vendor.
+encoders bundled with consumer sound-card software — built entirely on open
+implementations: FFmpeg's AC-3 encoder and dcaenc's DTS Coherent Acoustics
+encoder (both written from public standards). See [NOTICE.md](NOTICE.md) for
+trademark and licensing notes: this project is **not** affiliated with or
+certified by Dolby, DTS, Creative, or any other vendor, and contains no code
+derived from any proprietary product.
 
 ## Platform support
 
@@ -19,9 +22,12 @@ certified by Dolby, DTS, Creative, or any other vendor.
 | macOS 13+ | ScreenCaptureKit | CoreAudio (AVAudioEngine) | arm64, x64 |
 | Linux | PulseAudio/PipeWire sink monitor | PulseAudio | x64, arm64 |
 
-Verified end-to-end on Windows x64 (`ffprobe`:
-`ac3 / 48000 Hz / 6ch / 5.1(side) / 448 kb/s`). macOS and Linux build in CI;
-behavioral testing there is still pending — reports welcome.
+Verified end-to-end on Windows x64 (`ffprobe`):
+- `ac3 / 48000 Hz / 6ch / 5.1(side) / 448 kb/s`
+- `dts / 48000 Hz / 6ch / 5.1(side) / 768 kb/s`
+
+macOS and Linux build in CI; behavioral testing there is still pending —
+reports welcome.
 
 ## Quick start
 
@@ -34,6 +40,14 @@ await SurroundEncoder.start(const SurroundEncoderConfig(
   layout: ChannelLayout.surround51,
   bitrate: 448000,
   sink: FileSink('out.ts'),
+));
+
+// ... or encode a DTS (DCA) core stream instead.
+await SurroundEncoder.start(const SurroundEncoderConfig(
+  captureSystem: true,
+  codec: CodecKind.dca,
+  bitrate: 768000,
+  sink: FileSink('out-dts.ts'),
 ));
 
 // ... or stream it over UDP — play with `ffplay udp://@:1234`.
@@ -50,39 +64,48 @@ SurroundEncoder.events.listen((event) {
 await SurroundEncoder.stop();
 ```
 
-Raw encoded AC-3 packets are also available in Dart via
+Raw encoded packets are also available in Dart via
 `SurroundEncoder.packets` when the session uses `const StreamSink()`.
 
-## Building: FFmpeg requirement
+Codec notes: AC-3 accepts 96–512 kbps; the DCA core bitstream accepts
+64–1509 kbps (dcaenc snaps to the nearest valid rate). Both run at 48 kHz.
 
-FFmpeg is **not** shipped in this repository. The plugin needs a **minimal,
-audio-only FFmpeg build** — the setup scripts compile FFmpeg 8.1 from source
-with `--disable-everything` and re-enable only the AC-3 encoder, the MPEG-TS
-muxer and the file/udp protocols. The result is a few MB of DLLs/shared
-objects instead of the ~60 MB of a full build, and contains **no video
-codecs**. Either keep the output at `native/ffmpeg/<triplet>` (auto
-discovered by CMake) or point `SURROUND_ENCODER_FFMPEG_ROOT` at it.
+## Building: FFmpeg + dcaenc requirements
+
+Neither FFmpeg nor dcaenc is shipped in this repository. The plugin needs
+two minimal source builds (both produced by the setup scripts):
+
+1. **Minimal audio-only FFmpeg 8.1** — built with `--disable-everything`,
+   re-enabling only the AC-3 encoder, the MPEG-TS muxer and the file/udp
+   protocols. A few MB of DLLs instead of the ~113 MB of a full build, with
+   **no video codecs**. Layout: `native/ffmpeg/windows-x64` etc., auto
+   discovered by CMake, or set `SURROUND_ENCODER_FFMPEG_ROOT`.
+2. **dcaenc** — the independent LGPL DTS (DCA) encoder (~290 KB). Layout:
+   `native/dcaenc/windows-x64` etc., or set `SURROUND_ENCODER_DCAENC_ROOT`.
 
 ```powershell
 # Windows (x64): requires MSYS2 (https://msys2.org) + VS Build Tools
 .\tool\setup_ffmpeg.ps1                        # -Msys2Root D:\tools\msys64
+.\tool\setup_dcaenc.ps1                        # -Msys2Root D:\tools\msys64
 ```
 
 ```bash
 # Linux / macOS (triplet auto-detected; or pass one)
 ./tool/setup_ffmpeg.sh                        # requires git, make, gcc/clang
+./tool/setup_dcaenc.sh
 ```
 
-Triplets used by the plugin's CMake/podspec: `x64-windows`,
-`arm64-windows`, `arm64-osx`, `x64-darwin`, `x64-linux`, `arm64-linux`.
+Layout names used by the plugin's CMake/podspec: `windows-x64`,
+`windows-arm64`, `arm64-osx`, `x64-darwin`, `linux-x64`, `linux-arm64`.
 
 Notes:
 - If your network needs a proxy for GitHub, export `http_proxy` /
   `https_proxy` before running the scripts.
-- Windows arm64: build with `llvm-mingw`'s aarch64 toolchain or cross-compile
-  in WSL (`gcc-aarch64-linux-gnu` + `--enable-cross-compile`); the CI arm64
-  leg still validates integration against a full vcpkg FFmpeg build, which
-  is fine for correctness — only the *size* differs from the minimal build.
+- Windows arm64: build FFmpeg with `llvm-mingw`'s aarch64 toolchain or
+  cross-compile in WSL (`gcc-aarch64-linux-gnu` + `--enable-cross-compile`);
+  the CI arm64 leg still validates integration against a full vcpkg FFmpeg
+  build, which is fine for correctness — only the *size* differs from the
+  minimal build.
 
 ## Example app
 
@@ -92,7 +115,7 @@ Dart stream), layout switching and start/stop. For an unattended smoke run:
 ```bash
 cd example
 flutter run --release --dart-define=SURROUND_AUTO_START=true
-# encodes 10 s of system audio to surround_auto_start_out.ts
+# encodes 8 s of system audio to AC-3, then 8 s to DTS
 ```
 
 ## Architecture

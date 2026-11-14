@@ -30,8 +30,8 @@ if [ -z "$TRIPLET" ]; then
   case "$(uname -s)-$(uname -m)" in
     Darwin-arm64)  TRIPLET="arm64-osx" ;;
     Darwin-*)      TRIPLET="x64-darwin" ;;
-    Linux-aarch64) TRIPLET="arm64-linux" ;;
-    Linux-*)       TRIPLET="x64-linux" ;;
+    Linux-aarch64) TRIPLET="linux-arm64" ;;
+    Linux-*)       TRIPLET="linux-x64" ;;
     *) echo "Unsupported host: $(uname -s) $(uname -m)"; exit 1 ;;
   esac
 fi

@@ -60,12 +60,8 @@ class SurroundEncoderConfig {
     this.sampleRate = 48000,
     this.bitrate = 448000,
     this.sink = const StreamSink(),
-  })  : assert(sampleRate == 48000,
-            'AC-3/DCA encoding requires a 48 kHz sample rate'),
-        assert(bitrate >= 96000 && bitrate <= 512000,
-            'bitrate must be between 96 and 512 kbps'),
-        assert(codec == CodecKind.ac3,
-            'only CodecKind.ac3 is implemented in this release');
+  }) : assert(sampleRate == 48000,
+            'AC-3/DCA encoding requires a 48 kHz sample rate');
 
   /// Capture the system's playback audio (loopback/monitor).
   final bool captureSystem;

@@ -22,6 +22,7 @@ extern "C" {
 
 #include "ac3_encoder.h"
 #include "capture_source.h"
+#include "dca_encoder.h"
 #include "ts_muxer.h"
 
 namespace surround_encoder {
@@ -48,6 +49,7 @@ struct PipelineConfig {
   int out_channels = 6;   // 2 or 6
   int sample_rate = 48000;
   int64_t bitrate = 448000;
+  EncoderKind codec = EncoderKind::kAc3;
   PipelineSink sink = PipelineSink::kStream;
   std::string file_path;
   std::string udp_host;
@@ -105,12 +107,13 @@ class EncoderPipeline {
 
   PipelineConfig config_;
   std::vector<std::unique_ptr<Source>> sources_;
-  Ac3Encoder encoder_;
+  std::unique_ptr<AudioEncoder> encoder_;
   TsMuxer muxer_;
 
   std::mutex mutex_;  // guards sources_/encoder_/muxer_ interaction
   std::atomic<bool> running_{false};
 
+  int encode_frame_size_ = 1536;
   int64_t encoded_samples_ = 0;
   int64_t stats_bytes_ = 0;
   int64_t stats_bytes_at_last_emit_ = 0;

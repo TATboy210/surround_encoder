@@ -6,10 +6,7 @@
 #ifndef SURROUND_ENCODER_COMMON_AC3_ENCODER_H_
 #define SURROUND_ENCODER_COMMON_AC3_ENCODER_H_
 
-#include <cstdint>
-#include <functional>
-#include <string>
-#include <vector>
+#include "encoder.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -17,31 +14,32 @@ extern "C" {
 
 namespace surround_encoder {
 
-using PacketCallback = std::function<void(const uint8_t* data, size_t size)>;
-
-class Ac3Encoder {
+class Ac3Encoder : public AudioEncoder {
  public:
   Ac3Encoder() = default;
-  ~Ac3Encoder();
+  ~Ac3Encoder() override;
 
   Ac3Encoder(const Ac3Encoder&) = delete;
   Ac3Encoder& operator=(const Ac3Encoder&) = delete;
 
   // `channels` must be 2 (stereo) or 6 (5.1). `sample_rate` must be 48000.
   bool Open(int channels, int sample_rate, int64_t bitrate,
-            std::string* error);
-  void Close();
+            std::string* error) override;
+  void Close() override;
 
-  void set_packet_callback(PacketCallback callback) {
+  int frame_size() const override { return frame_size_; }
+
+  void set_packet_callback(PacketCallback callback) override {
     packet_callback_ = std::move(callback);
   }
 
   // Queues interleaved float32 samples and encodes every complete 1536-sample
   // frame. Returns false and fills `error` on encoder failure.
-  bool Encode(const float* interleaved, int frame_count, std::string* error);
+  bool Encode(const float* interleaved, int frame_count,
+              std::string* error) override;
 
   // Flushes buffered samples (zero-padded to a full frame where needed).
-  bool Flush(std::string* error);
+  bool Flush(std::string* error) override;
 
  private:
   bool EncodeFrame(AVFrame* frame, std::string* error);

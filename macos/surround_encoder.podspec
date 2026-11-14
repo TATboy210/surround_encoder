@@ -27,10 +27,12 @@ surround stream using FFmpeg's open AC-3 implementation.
 
   s.platform = :osx, '10.15'
 
-  # FFmpeg is not vendored in this repository (see NOTICE.md). Point
-  # SURROUND_ENCODER_FFMPEG_ROOT at a dev layout (include/ + lib/) built by
-  # tool/setup_ffmpeg.sh.
+  # FFmpeg and dcaenc are not vendored in this repository (see NOTICE.md).
+  # Point SURROUND_ENCODER_FFMPEG_ROOT / SURROUND_ENCODER_DCAENC_ROOT at dev
+  # layouts (include/ + lib/) built by tool/setup_ffmpeg.sh and
+  # tool/setup_dcaenc.sh.
   ffmpeg_root = ENV['SURROUND_ENCODER_FFMPEG_ROOT']
+  dcaenc_root = ENV['SURROUND_ENCODER_DCAENC_ROOT']
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'HEADER_SEARCH_PATHS' => '"$(inherited)" "$(PODS_ROOT)/../../src/common"',
@@ -38,5 +40,9 @@ surround stream using FFmpeg's open AC-3 implementation.
   if ffmpeg_root
     s.pod_target_xcconfig['HEADER_SEARCH_PATHS'] = %Q{"$(inherited)" "$(PODS_ROOT)/../../src/common" "#{ffmpeg_root}/include"}
     s.pod_target_xcconfig['OTHER_LDFLAGS'] = %Q{"$(inherited)" -L"#{ffmpeg_root}/lib" -lavcodec -lavformat -lswresample -lavutil}
+  end
+  if dcaenc_root
+    s.pod_target_xcconfig['HEADER_SEARCH_PATHS'] = %Q{#{s.pod_target_xcconfig['HEADER_SEARCH_PATHS']} "#{dcaenc_root}/include"}
+    s.pod_target_xcconfig['OTHER_LDFLAGS'] = %Q{#{s.pod_target_xcconfig['OTHER_LDFLAGS']} -L"#{dcaenc_root}/lib" -ldcaenc}
   end
 end

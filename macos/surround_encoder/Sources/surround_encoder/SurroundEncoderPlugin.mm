@@ -511,6 +511,10 @@ static surround_encoder::EncoderPipeline g_pipeline;
                               : 2;
   pipeline.sample_rate = 48000;
   pipeline.bitrate = config.bitrate.intValue;
+  pipeline.codec = config.codec != nullptr &&
+                           config.codec.value == SENCodecKindDca
+                       ? surround_encoder::EncoderKind::kDca
+                       : surround_encoder::EncoderKind::kAc3;
 
   SENSinkKind sink_kind =
       config.sinkKind != nullptr ? config.sinkKind.value

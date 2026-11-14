@@ -38,6 +38,26 @@ void main() {
     expect(api.lastStart!.udpPort, 1234);
   });
 
+  test('start() validates per-codec bitrate ranges', () async {
+    final api = FakeSurroundEncoderPluginApi();
+    final impl = SurroundEncoderImpl(hostApi: api);
+
+    await expectLater(
+      impl.start(const SurroundEncoderConfig(
+        codec: CodecKind.dca,
+        bitrate: 5120000,
+      )),
+      throwsA(isA<EncoderException>()),
+    );
+    await expectLater(
+      impl.start(const SurroundEncoderConfig(
+        codec: CodecKind.ac3,
+        bitrate: 2048000,
+      )),
+      throwsA(isA<EncoderException>()),
+    );
+  });
+
   test('start() rejects configs without any capture source', () async {
     final api = FakeSurroundEncoderPluginApi();
     final impl = SurroundEncoderImpl(hostApi: api);

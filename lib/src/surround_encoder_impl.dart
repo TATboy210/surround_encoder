@@ -64,6 +64,20 @@ class SurroundEncoderImpl {
       throw const EncoderException(
           'At least one capture source must be enabled');
     }
+    // Per-codec bitrate ranges: AC-3 accepts 96-512 kbps; the DCA core
+    // bitstream tops out at 1509 kbps and dcaenc snaps to valid values.
+    switch (config.codec) {
+      case CodecKind.ac3:
+        if (config.bitrate < 96000 || config.bitrate > 512000) {
+          throw const EncoderException(
+              'AC-3 bitrate must be between 96 and 512 kbps');
+        }
+      case CodecKind.dca:
+        if (config.bitrate < 64000 || config.bitrate > 1509000) {
+          throw const EncoderException(
+              'DCA bitrate must be between 64 and 1509 kbps');
+        }
+    }
     final SinkConfig sink = config.sink;
     final EncoderConfig host = EncoderConfig()
       ..captureSystem = config.captureSystem

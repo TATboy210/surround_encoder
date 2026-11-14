@@ -29,7 +29,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $OutputRoot = Join-Path $RepoRoot 'native\ffmpeg'
-$Prefix = Join-Path $OutputRoot $Triplet
+# The plugin's CMake discovers native/ffmpeg/windows-<arch>.
+$LayoutName = if ($Triplet -match '^arm64') { 'windows-arm64' } else { 'windows-x64' }
+$Prefix = Join-Path $OutputRoot $LayoutName
 
 if ($Triplet -notmatch '^(x64-windows|arm64-windows)$') {
   throw "Unsupported triplet '$Triplet' - use x64-windows or arm64-windows"
@@ -44,8 +46,7 @@ $VsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.e
 if (-not (Test-Path $VsWhere)) { throw 'vswhere.exe not found - install Visual Studio Build Tools' }
 $VsPath = & $VsWhere -latest -property installationPath
 $LibExe = Get-ChildItem -Path (Join-Path $VsPath 'VC\Tools\MSVC') -Recurse `
-  -Filter lib.exe | Where-Object { $_.FullName -match 'Hostx64\\x64$' } |
-  Select-Object -First 1 -ExpandProperty FullName
+  -Filter lib.exe | Select-Object -First 1 -ExpandProperty FullName
 if (-not $LibExe) { throw 'lib.exe not found under the VS installation' }
 Write-Host "Using lib.exe: $LibExe"
 

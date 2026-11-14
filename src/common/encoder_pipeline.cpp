@@ -147,13 +147,13 @@ void EncoderPipeline::TryEncodeLocked(std::string* error) {
     }
   }
 
-  if (!encoder_.Encode(mixed.data(), static_cast<int>(available), error)) {
+  if (!encoder_->Encode(mixed.data(), static_cast<int>(available), error)) {
     return;
   }
   encoded_samples_ += static_cast<int64_t>(available);
   ++stats_emit_counter_;
   if (stats_emit_counter_ >=
-      static_cast<int64_t>(config_.sample_rate) / 1536) {
+      static_cast<int64_t>(config_.sample_rate) / encode_frame_size_) {
     stats_emit_counter_ = 0;
     EmitStats();
   }
@@ -178,9 +178,20 @@ bool EncoderPipeline::Start(const PipelineConfig& config, std::string* error) {
 
     EmitState(PipelineState::kStarting, "");
 
+    // Create the codec backend selected by the caller.
+    switch (config_.codec) {
+      case EncoderKind::kDca:
+        encoder_ = std::make_unique<DcaEncoder>();
+        break;
+      case EncoderKind::kAc3:
+      default:
+        encoder_ = std::make_unique<Ac3Encoder>();
+        break;
+    }
+
     // Encoded packets arrive while mutex_ is held (via TryEncodeLocked or
     // Stop's flush), so this callback must not re-lock.
-    encoder_.set_packet_callback([this](const uint8_t* data, size_t size) {
+    encoder_->set_packet_callback([this](const uint8_t* data, size_t size) {
       stats_bytes_ += static_cast<int64_t>(size);
       if (config_.sink == PipelineSink::kStream) {
         if (packet_callback_) {
@@ -189,21 +200,25 @@ bool EncoderPipeline::Start(const PipelineConfig& config, std::string* error) {
         return;
       }
       std::string mux_error;
-      const int64_t frame_pts = mux_packet_index_ * 1536;
+      const int64_t frame_pts =
+          mux_packet_index_ * static_cast<int64_t>(encode_frame_size_);
       if (!muxer_.WritePacket(data, size, frame_pts, &mux_error)) {
         mux_write_failed_ = true;
       }
       ++mux_packet_index_;
     });
 
-    if (!encoder_.Open(config_.out_channels, config_.sample_rate,
-                       config_.bitrate, error)) {
+    if (!encoder_->Open(config_.out_channels, config_.sample_rate,
+                        config_.bitrate, error)) {
       EmitState(PipelineState::kError, *error);
       return false;
     }
+    encode_frame_size_ = encoder_->frame_size();
 
+    const AVCodecID codec_id =
+        config_.codec == EncoderKind::kDca ? AV_CODEC_ID_DTS : AV_CODEC_ID_AC3;
     if (config_.sink == PipelineSink::kFile) {
-      if (!muxer_.Open(config_.file_path, AV_CODEC_ID_AC3,
+      if (!muxer_.Open(config_.file_path, codec_id,
                        config_.sample_rate, config_.out_channels,
                        config_.bitrate, error)) {
         EmitState(PipelineState::kError, *error);
@@ -212,7 +227,7 @@ bool EncoderPipeline::Start(const PipelineConfig& config, std::string* error) {
     } else if (config_.sink == PipelineSink::kUdp) {
       const std::string url =
           "udp://" + config_.udp_host + ":" + std::to_string(config_.udp_port);
-      if (!muxer_.Open(url, AV_CODEC_ID_AC3, config_.sample_rate,
+      if (!muxer_.Open(url, codec_id, config_.sample_rate,
                        config_.out_channels, config_.bitrate, error)) {
         EmitState(PipelineState::kError, *error);
         return false;
@@ -288,7 +303,7 @@ bool EncoderPipeline::Stop(std::string* error) {
   std::lock_guard<std::mutex> lock(mutex_);
   bool ok = true;
   std::string flush_error;
-  if (!encoder_.Flush(&flush_error)) {
+  if (encoder_ != nullptr && !encoder_->Flush(&flush_error)) {
     ok = false;
     *error = flush_error;
   }
@@ -305,7 +320,10 @@ bool EncoderPipeline::Stop(std::string* error) {
     }
   }
   sources_.clear();
-  encoder_.Close();
+  if (encoder_ != nullptr) {
+    encoder_->Close();
+  }
+  encoder_.reset();
 
   EmitState(PipelineState::kStopped, "");
   return ok;
