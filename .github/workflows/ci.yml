@@ -1,0 +1,134 @@
+# Copyright 2026 The surround_encoder authors. MIT license.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  dart-tests:
+    name: Dart analyze + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  windows-x64:
+    name: Windows x64 (flutter build)
+    runs-on: windows-latest
+    needs: dart-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build FFmpeg dev layout (vcpkg, LGPL)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitURL: https://github.com/microsoft/vcpkg
+          runVcpkgInstall: ffmpeg
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgTriplet: x64-windows
+      - name: Stage FFmpeg layout for plugin discovery
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path native/ffmpeg/windows-x64 | Out-Null
+          Copy-Item -Recurse -Force vcpkg/installed/x64-windows/include native/ffmpeg/windows-x64/
+          Copy-Item -Recurse -Force vcpkg/installed/x64-windows/lib native/ffmpeg/windows-x64/
+          Copy-Item -Recurse -Force vcpkg/installed/x64-windows/bin native/ffmpeg/windows-x64/
+      - name: Build example (auto-start smoke session)
+        run: flutter build windows --release --dart-define=SURROUND_AUTO_START=true
+        working-directory: example
+
+  windows-arm64:
+    name: Windows arm64 (plugin cross-build)
+    runs-on: windows-latest
+    needs: dart-tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build FFmpeg dev layout (vcpkg, LGPL)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitURL: https://github.com/microsoft/vcpkg
+          runVcpkgInstall: ffmpeg
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgTriplet: arm64-windows
+      - name: Stage FFmpeg layout and configure plugin for ARM64
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path native/ffmpeg/windows-arm64 | Out-Null
+          Copy-Item -Recurse -Force vcpkg/installed/arm64-windows/include native/ffmpeg/windows-arm64/
+          Copy-Item -Recurse -Force vcpkg/installed/arm64-windows/lib native/ffmpeg/windows-arm64/
+          Copy-Item -Recurse -Force vcpkg/installed/arm64-windows/bin native/ffmpeg/windows-arm64/
+          cmake -S windows -B build-arm64 -A ARM64 `
+            -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=arm64-windows
+          cmake --build build-arm64 --config Release
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    needs: dart-tests
+    strategy:
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+            triplet: arm64-osx
+          - os: macos-13
+            arch: x64
+            triplet: x64-darwin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build FFmpeg dev layout (vcpkg, LGPL)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitURL: https://github.com/microsoft/vcpkg
+          runVcpkgInstall: ffmpeg
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgTriplet: ${{ matrix.triplet }}
+      - name: Stage FFmpeg layout
+        run: |
+          mkdir -p native/ffmpeg/${{ matrix.triplet }}
+          cp -R vcpkg/installed/${{ matrix.triplet }}/include native/ffmpeg/${{ matrix.triplet }}/
+          cp -R vcpkg/installed/${{ matrix.triplet }}/lib native/ffmpeg/${{ matrix.triplet }}/
+      - name: Build example
+        run: flutter build macos --release
+        working-directory: example
+        env:
+          SURROUND_ENCODER_FFMPEG_ROOT: ${{ github.workspace }}/native/ffmpeg/${{ matrix.triplet }}
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    needs: dart-tests
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev \
+            libpulse-dev \
+            libavcodec-dev libavformat-dev libswresample-dev libavutil-dev
+      - name: Build example
+        run: flutter build linux --release
+        working-directory: example
