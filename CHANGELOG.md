@@ -7,3 +7,5 @@
 * MPEG-TS output to local files and UDP destinations; raw-packet streaming
   to Dart.
 * Windows (x64/arm64), macOS 13+ (arm64/x64), Linux (x64/arm64).
+* Minimal audio-only FFmpeg build scripts (`tool/setup_ffmpeg.*`) — no
+  video codecs in the bundled libraries, a few MB instead of ~60 MB.

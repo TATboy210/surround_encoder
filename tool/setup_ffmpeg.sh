@@ -1,63 +1,87 @@
 #!/usr/bin/env bash
 # Copyright 2026 The surround_encoder authors. MIT license.
 #
-# Builds an FFmpeg development layout (include/ + lib/) for Linux or macOS
-# using vcpkg, with an LGPL-only configuration.
+# Builds a MINIMAL, LGPL-configuration FFmpeg from source (audio-only: AC-3
+# encoder, MPEG-TS muxer, file/udp protocols, swresample) for Linux or macOS.
+# The result is a few MB instead of the ~60 MB of a full build, and contains
+# no video codecs at all.
 #
 # Usage:
-#   ./tool/setup_ffmpeg.sh x64-linux          # or arm64-linux
-#   ./tool/setup_ffmpeg.sh x64-darwin         # or arm64-osx
-#   ./tool/setup_ffmpeg.sh                    # triplet for the host platform
+#   ./tool/setup_ffmpeg.sh            # triplet auto-detected for this host
+#   ./tool/setup_ffmpeg.sh x64-linux  # or arm64-linux / arm64-osx / x64-darwin
 #
-# Output lands in native/ffmpeg/<triplet>/, picked up by the platform
-# CMakeLists via SURROUND_ENCODER_FFMPEG_ROOT. FFmpeg is NOT redistributed in
-# this repository; every consumer builds their own (see NOTICE.md).
+# Output lands in native/ffmpeg/<triplet>/ where the plugin's CMake finds it
+# automatically. FFmpeg is never committed or redistributed (see NOTICE.md):
+# this script builds your own copy from source, which also satisfies the
+# LGPL requirement to provide the corresponding source.
+#
+# Requirements: git, make, a C compiler (gcc/clang), nasm on x86 hosts,
+# yasm not required. Set http_proxy/https_proxy if your network needs a
+# proxy for GitHub.
 set -euo pipefail
 
+FFMPEG_TAG="${FFMPEG_TAG:-n8.1}"
 TRIPLET="${1:-}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_ROOT="$REPO_ROOT/native/ffmpeg"
-
-case "$TRIPLET" in
-  "") ;;
-  *) ;;
-esac
-
-# vcpkg location: VCPKG_ROOT env, or install a local copy on first use.
-VCPKG_ROOT="${VCPKG_ROOT:-$REPO_ROOT/native/.vcpkg}"
-if [ ! -x "$VCPKG_ROOT/vcpkg" ]; then
-  echo "Cloning vcpkg into $VCPKG_ROOT ..."
-  git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
-  "$VCPKG_ROOT/bootstrap-vcpkg.sh"
-fi
-VCPKG="$VCPKG_ROOT/vcpkg"
+SRC_DIR="$OUTPUT_ROOT/ffmpeg-src"
 
 if [ -z "$TRIPLET" ]; then
   case "$(uname -s)-$(uname -m)" in
-    Darwin-arm64) TRIPLET="arm64-osx" ;;
-    Darwin-*)     TRIPLET="x64-darwin" ;;
+    Darwin-arm64)  TRIPLET="arm64-osx" ;;
+    Darwin-*)      TRIPLET="x64-darwin" ;;
     Linux-aarch64) TRIPLET="arm64-linux" ;;
     Linux-*)       TRIPLET="x64-linux" ;;
     *) echo "Unsupported host: $(uname -s) $(uname -m)"; exit 1 ;;
   esac
 fi
 
-BUILD_DIR="$OUTPUT_ROOT/vcpkg-build-$TRIPLET"
+# --- source ---------------------------------------------------------------
+mkdir -p "$OUTPUT_ROOT"
+if [ ! -f "$SRC_DIR/RELEASE" ] && [ ! -f "$SRC_DIR/FFMPEG_VERSION" ]; then
+  echo "Cloning FFmpeg $FFMPEG_TAG (shallow)..."
+  rm -rf "$SRC_DIR"
+  git clone --depth 1 --branch "$FFMPEG_TAG" \
+    https://github.com/FFmpeg/FFmpeg.git "$SRC_DIR"
+fi
+
+# --- configure ------------------------------------------------------------
+BUILD_DIR="$SRC_DIR/build-$TRIPLET"
+PREFIX="$OUTPUT_ROOT/$TRIPLET"
 mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
 
-echo "Building FFmpeg for $TRIPLET (this takes a while)..."
-(cd "$BUILD_DIR" && "$VCPKG" install \
-  --triplet "$TRIPLET" \
-  --x-manifest-root="$REPO_ROOT/tool" \
-  --x-install-root="$BUILD_DIR/vcpkg_installed")
+case "$TRIPLET" in
+  x64-*|i686-*) ASM_FLAGS="" ;;          # nasm available on x86 hosts
+  *)            ASM_FLAGS="--disable-x86asm" ;;
+esac
 
-INSTALLED="$BUILD_DIR/vcpkg_installed/$TRIPLET"
-OUT="$OUTPUT_ROOT/$TRIPLET"
-mkdir -p "$OUT"
-cp -R "$INSTALLED/include" "$OUT/include"
-cp -R "$INSTALLED/lib" "$OUT/lib"
-[ -d "$INSTALLED/bin" ] && cp -R "$INSTALLED/bin" "$OUT/bin"
+echo "Configuring minimal FFmpeg for $TRIPLET -> $PREFIX"
+"$SRC_DIR/configure" \
+  --prefix="$PREFIX" \
+  --enable-shared \
+  --disable-static \
+  --disable-everything \
+  --enable-encoder=ac3 \
+  --enable-muxer=mpegts \
+  --enable-protocol=file,udp \
+  --disable-avdevice \
+  --disable-avfilter \
+  --disable-swscale \
+  --disable-programs \
+  --disable-doc \
+  --disable-debug \
+  --disable-autodetect \
+  --enable-small \
+  $ASM_FLAGS
 
-echo "FFmpeg for $TRIPLET ready: $OUT"
-echo "Set SURROUND_ENCODER_FFMPEG_ROOT=$OUT before building, or keep it under"
-echo "native/ffmpeg/<triplet> where the platform CMake finds it."
+# --- build & install ------------------------------------------------------
+NPROC=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+make -j"$NPROC"
+make install
+
+echo ""
+echo "Minimal FFmpeg installed to $PREFIX"
+du -sh "$PREFIX/bin" 2>/dev/null || du -sh "$PREFIX/lib"
+echo "The plugin's CMake discovers this layout automatically; or set"
+echo "SURROUND_ENCODER_FFMPEG_ROOT=$PREFIX explicitly."

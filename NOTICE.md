@@ -19,10 +19,16 @@ output.
   2. **No FFmpeg binaries are committed to this repository or published
      through pub.dev.** Every consumer builds their own FFmpeg from source
      using the provided scripts (`tool/setup_ffmpeg.ps1` /
-     `tool/setup_ffmpeg.sh`, vcpkg, LGPL configuration) or links a system
-     FFmpeg.
+     `tool/setup_ffmpeg.sh` — minimal audio-only LGPL configuration) or
+     links a system FFmpeg.
   3. No GPL-only components (x264, x265, libdca, etc.) are enabled by the
      provided scripts.
+- **Build trimming:** the provided scripts build FFmpeg with
+  `--disable-everything`, re-enabling only the AC-3 encoder, MPEG-TS muxer
+  and file/udp protocols, and drop avdevice/avfilter/swscale entirely. The
+  bundled libraries therefore contain **no video codecs**. Trimming does not
+  change the LGPL obligations above; it only reduces what ends up in your
+  application bundle.
 - If you distribute an application built with this plugin, you must comply
   with LGPL-2.1 for the FFmpeg portions: include the FFmpeg license text, and
   offer the corresponding FFmpeg source (or a written offer) to your

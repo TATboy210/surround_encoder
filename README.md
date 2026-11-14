@@ -55,26 +55,34 @@ Raw encoded AC-3 packets are also available in Dart via
 
 ## Building: FFmpeg requirement
 
-FFmpeg is **not** shipped in this repository. Build an LGPL configuration
-once per platform and either keep it at `native/ffmpeg/<triplet>` (auto
-discovered) or point `SURROUND_ENCODER_FFMPEG_ROOT` at it:
+FFmpeg is **not** shipped in this repository. The plugin needs a **minimal,
+audio-only FFmpeg build** — the setup scripts compile FFmpeg 8.1 from source
+with `--disable-everything` and re-enable only the AC-3 encoder, the MPEG-TS
+muxer and the file/udp protocols. The result is a few MB of DLLs/shared
+objects instead of the ~60 MB of a full build, and contains **no video
+codecs**. Either keep the output at `native/ffmpeg/<triplet>` (auto
+discovered by CMake) or point `SURROUND_ENCODER_FFMPEG_ROOT` at it.
 
 ```powershell
-# Windows (x64 + arm64)
-.\tool\setup_ffmpeg.ps1                       # requires git; uses vcpkg
+# Windows (x64): requires MSYS2 (https://msys2.org) + VS Build Tools
+.\tool\setup_ffmpeg.ps1                        # -Msys2Root D:\tools\msys64
 ```
 
 ```bash
 # Linux / macOS (triplet auto-detected; or pass one)
-./tool/setup_ffmpeg.sh                        # requires git; uses vcpkg
-
-# Alternatively, on Linux system packages work directly:
-sudo apt install libpulse-dev libavcodec-dev libavformat-dev \
-                 libswresample-dev libavutil-dev
+./tool/setup_ffmpeg.sh                        # requires git, make, gcc/clang
 ```
 
 Triplets used by the plugin's CMake/podspec: `x64-windows`,
 `arm64-windows`, `arm64-osx`, `x64-darwin`, `x64-linux`, `arm64-linux`.
+
+Notes:
+- If your network needs a proxy for GitHub, export `http_proxy` /
+  `https_proxy` before running the scripts.
+- Windows arm64: build with `llvm-mingw`'s aarch64 toolchain or cross-compile
+  in WSL (`gcc-aarch64-linux-gnu` + `--enable-cross-compile`); the CI arm64
+  leg still validates integration against a full vcpkg FFmpeg build, which
+  is fine for correctness — only the *size* differs from the minimal build.
 
 ## Example app
 
