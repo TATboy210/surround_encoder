@@ -1,10 +1,11 @@
-; Export list for the dcaenc shared library — the stable public API declared
-; in dcaenc.h. Used by tool/setup_dcaenc.ps1 (lib.exe) and the CI MSVC build.
+; Export list for the dcaenc shared library — the implemented public API
+; declared in dcaenc.h. Note: dcaenc.h declares dcaenc_bitrate() but the
+; library never implemented it, so it must not be exported. Used by
+; tool/setup_dcaenc.ps1 (lib.exe) and the CI MSVC build.
 LIBRARY dcaenc
 EXPORTS
   dcaenc_channel_config_to_count
   dcaenc_create
-  dcaenc_bitrate
   dcaenc_input_size
   dcaenc_output_size
   dcaenc_convert_s32

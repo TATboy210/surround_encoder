@@ -33,16 +33,21 @@ surround stream using FFmpeg's open AC-3 implementation.
   # tool/setup_dcaenc.sh.
   ffmpeg_root = ENV['SURROUND_ENCODER_FFMPEG_ROOT']
   dcaenc_root = ENV['SURROUND_ENCODER_DCAENC_ROOT']
-  s.pod_target_xcconfig = {
-    'DEFINES_MODULE' => 'YES',
-    'HEADER_SEARCH_PATHS' => '"$(inherited)" "$(PODS_ROOT)/../../src/common"',
-  }
+
+  header_paths = '"$(inherited)" "$(PODS_ROOT)/../../src/common"'
+  ld_flags = '"$(inherited)"'
   if ffmpeg_root
-    s.pod_target_xcconfig['HEADER_SEARCH_PATHS'] = %Q{"$(inherited)" "$(PODS_ROOT)/../../src/common" "#{ffmpeg_root}/include"}
-    s.pod_target_xcconfig['OTHER_LDFLAGS'] = %Q{"$(inherited)" -L"#{ffmpeg_root}/lib" -lavcodec -lavformat -lswresample -lavutil}
+    header_paths += %Q{ "#{ffmpeg_root}/include"}
+    ld_flags += %Q{ -L"#{ffmpeg_root}/lib" -lavcodec -lavformat -lswresample -lavutil}
   end
   if dcaenc_root
-    s.pod_target_xcconfig['HEADER_SEARCH_PATHS'] = %Q{#{s.pod_target_xcconfig['HEADER_SEARCH_PATHS']} "#{dcaenc_root}/include"}
-    s.pod_target_xcconfig['OTHER_LDFLAGS'] = %Q{#{s.pod_target_xcconfig['OTHER_LDFLAGS']} -L"#{dcaenc_root}/lib" -ldcaenc}
+    header_paths += %Q{ "#{dcaenc_root}/include"}
+    ld_flags += %Q{ -L"#{dcaenc_root}/lib" -ldcaenc}
   end
+
+  s.pod_target_xcconfig = {
+    'DEFINES_MODULE' => 'YES',
+    'HEADER_SEARCH_PATHS' => header_paths,
+    'OTHER_LDFLAGS' => ld_flags,
+  }
 end

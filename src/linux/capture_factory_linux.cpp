@@ -5,6 +5,10 @@
 #include <pulse/pulseaudio.h>
 
 #include <memory>
+#include <condition_variable>
+#include <cstring>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -138,7 +142,8 @@ std::vector<DeviceInfo> ListCaptureDevices() {
     RunOperation(mainloop, op);
 
     collector.kind = SourceKind::kMicrophone;
-    collector.wait = WaitState();
+    // Reusing collector.wait here is fine: it is already latched to "done"
+    // by the sink enumeration, and Finish() is idempotent.
     op = pa_context_get_source_info_list(context, SourceListCb, &collector);
     RunOperation(mainloop, op);
   }

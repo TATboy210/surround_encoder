@@ -47,16 +47,14 @@ jobs:
           Copy-Item -Recurse -Force vcpkg/installed/x64-windows/include native/ffmpeg/windows-x64/
           Copy-Item -Recurse -Force vcpkg/installed/x64-windows/lib native/ffmpeg/windows-x64/
           Copy-Item -Recurse -Force vcpkg/installed/x64-windows/bin native/ffmpeg/windows-x64/
-      - name: Build dcaenc (MSVC)
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-      - name: Compile dcaenc
+      - name: Compile dcaenc (MSVC)
         shell: cmd
         run: |
           git clone --depth 1 https://gitlab.com/patrakov/dcaenc.git native\dcaenc\dcaenc-src
           copy /y NUL native\dcaenc\dcaenc-src\config.h
           mkdir native\dcaenc\windows-x64\bin native\dcaenc\windows-x64\include native\dcaenc\windows-x64\lib
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set "VSPATH=%%i"
+          call "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
           cd native\dcaenc\dcaenc-src
           cl /O2 gentables.c
           gentables.exe > math_tables.c
@@ -87,16 +85,14 @@ jobs:
           Copy-Item -Recurse -Force vcpkg/installed/arm64-windows/include native/ffmpeg/windows-arm64/
           Copy-Item -Recurse -Force vcpkg/installed/arm64-windows/lib native/ffmpeg/windows-arm64/
           Copy-Item -Recurse -Force vcpkg/installed/arm64-windows/bin native/ffmpeg/windows-arm64/
-      - name: Build dcaenc (MSVC cross to ARM64)
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: arm64
-      - name: Compile dcaenc
+      - name: Compile dcaenc (MSVC cross to ARM64)
         shell: cmd
         run: |
           git clone --depth 1 https://gitlab.com/patrakov/dcaenc.git native\dcaenc\dcaenc-src
           copy /y NUL native\dcaenc\dcaenc-src\config.h
           mkdir native\dcaenc\windows-arm64\bin native\dcaenc\windows-arm64\include native\dcaenc\windows-arm64\lib
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set "VSPATH=%%i"
+          call "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" arm64
           cd native\dcaenc\dcaenc-src
           cl /O2 gentables.c
           gentables.exe > math_tables.c
